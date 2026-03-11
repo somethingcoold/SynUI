@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon />
+    <AssemblyName>SynUI</AssemblyName>
+    <RootNamespace>SynUI</RootNamespace>
+
+    <!-- Production publish settings (Framework Dependent) -->
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AvalonEdit" Version="6.*" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.*" />
+    <PackageReference Include="StreamJsonRpc" Version="2.24.84" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\Lua.xshd" />
+  </ItemGroup>
+
+</Project>

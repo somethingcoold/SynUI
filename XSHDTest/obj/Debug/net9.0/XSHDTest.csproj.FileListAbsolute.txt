@@ -1,0 +1,17 @@
+C:\Users\avira\Downloads\SynUI\XSHDTest\bin\Debug\net9.0\XSHDTest.exe
+C:\Users\avira\Downloads\SynUI\XSHDTest\bin\Debug\net9.0\XSHDTest.deps.json
+C:\Users\avira\Downloads\SynUI\XSHDTest\bin\Debug\net9.0\XSHDTest.runtimeconfig.json
+C:\Users\avira\Downloads\SynUI\XSHDTest\bin\Debug\net9.0\XSHDTest.dll
+C:\Users\avira\Downloads\SynUI\XSHDTest\bin\Debug\net9.0\XSHDTest.pdb
+C:\Users\avira\Downloads\SynUI\XSHDTest\bin\Debug\net9.0\ICSharpCode.AvalonEdit.dll
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\XSHDTest.csproj.AssemblyReference.cache
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\XSHDTest.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\XSHDTest.AssemblyInfoInputs.cache
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\XSHDTest.AssemblyInfo.cs
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\XSHDTest.csproj.CoreCompileInputs.cache
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\XSHDTest.csproj.Up2Date
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\XSHDTest.dll
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\refint\XSHDTest.dll
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\XSHDTest.pdb
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\XSHDTest.genruntimeconfig.cache
+C:\Users\avira\Downloads\SynUI\XSHDTest\obj\Debug\net9.0\ref\XSHDTest.dll

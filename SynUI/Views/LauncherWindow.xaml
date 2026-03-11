@@ -1,0 +1,84 @@
+<Window x:Class="SynUI.Views.LauncherWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SynUI Launcher" Height="450" Width="700"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <Storyboard x:Key="FadeIn">
+            <DoubleAnimation Storyboard.TargetName="MainContent" Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.8">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="ChoiceGrid" Storyboard.TargetProperty="RenderTransform.(TranslateTransform.Y)" From="40" To="0" Duration="0:0:0.8">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+    </Window.Resources>
+    
+    <Border Background="{StaticResource BgDeepBrush}" CornerRadius="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+        <Grid x:Name="MainContent" Opacity="0">
+            <!-- Background Accent Glow -->
+            <Ellipse Fill="{StaticResource AccentGradientBrush}" Width="400" Height="400" Margin="-200,-200,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.05">
+                <Ellipse.Effect>
+                    <BlurEffect Radius="100"/>
+                </Ellipse.Effect>
+            </Ellipse>
+
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <!-- Logo Stuff -->
+                <TextBlock Text="SYNUI" FontSize="10" FontWeight="Black" Foreground="{StaticResource AccentPurpleBrush}" HorizontalAlignment="Center" Margin="0,0,0,-5" />
+                
+                <!-- Greeting -->
+                <TextBlock Text="Welcome back." FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5">
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="{StaticResource AccentPurple}" BlurRadius="15" Opacity="0.4"/>
+                    </TextBlock.Effect>
+                </TextBlock>
+                <TextBlock Text="Ready to start scripting? Choose your suite below." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,45"/>
+
+                <!-- Choice Cards -->
+                <Grid x:Name="ChoiceGrid">
+                    <Grid.RenderTransform>
+                        <TranslateTransform/>
+                    </Grid.RenderTransform>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="280"/>
+                        <ColumnDefinition Width="280"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Desktop Option -->
+                    <Button Grid.Column="0" Style="{StaticResource SelectionCard}" Click="Desktop_Click">
+                        <StackPanel Margin="10">
+                            <Path Data="M4,6 H20 V16 H4 Z M2,18 H22 M12,16 V18" Stroke="{StaticResource AccentPurpleBrush}" StrokeThickness="2" Width="48" Height="48" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+                            <TextBlock Text="Desktop Client" FontWeight="Bold" FontSize="18" Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Native performance with AvalonEdit support." FontSize="12" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Web Option -->
+                    <Button Grid.Column="1" Style="{StaticResource SelectionCard}" Click="Web_Click">
+                        <StackPanel Margin="10">
+                            <Path Data="M12,2 A10,10 0 1,0 22,12 A10,10 0 0,0 12,2 M2,12 H22 M12,2 V22" Stroke="{StaticResource AccentBlueBrush}" StrokeThickness="2" Width="48" Height="48" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+                            <TextBlock Text="Web Suite" FontWeight="Bold" FontSize="18" Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Browser-based power with Monaco &amp; LSP." FontSize="12" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <TextBlock x:Name="StatusText" Text="" FontSize="12" Foreground="{StaticResource AccentPurpleBrush}" HorizontalAlignment="Center" Margin="0,30,0,0" Opacity="0"/>
+            </StackPanel>
+
+            <!-- Titlebar Controls (Minimal) -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10">
+                <Button Style="{StaticResource TitleBarIconBtn}" Click="Close_Click" Tag="Close">
+                    <Path Data="M0,0 L10,10 M10,0 L0,10" Stroke="{StaticResource TextSecondaryBrush}" StrokeThickness="1.5" Width="10" Height="10"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

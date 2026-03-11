@@ -1,0 +1,222 @@
+<?xml version="1.0"?>
+<SyntaxDefinition name="Luau" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <!-- ═══ Dark Theme Color Palette ═══ -->
+  <Color name="Comment" foreground="#5C5C6E" fontStyle="italic" />
+  <Color name="String" foreground="#A8DB8A" />
+  <Color name="Keyword" foreground="#C792EA" fontWeight="bold" />
+  <Color name="BuiltIn" foreground="#82AAFF" />
+  <Color name="TypeKeyword" foreground="#FFCB6B" fontStyle="italic" />
+  <Color name="Number" foreground="#F78C6C" />
+  <Color name="Operator" foreground="#89DDFF" />
+  <Color name="GlobalVar" foreground="#FFCB6B" />
+  <Color name="Boolean" foreground="#FF5370" />
+  <Color name="RobloxGlobal" foreground="#89DDFF" fontWeight="bold" />
+  <Color name="RobloxType" foreground="#FFCB6B" />
+  <Color name="SynapseFunc" foreground="#C3E88D" fontStyle="italic" />
+  <Color name="Self" foreground="#F78C6C" fontStyle="italic" />
+
+  <RuleSet>
+    <!-- ═══ COMMENTS ═══ -->
+    <Span color="Comment" begin="--\[\[" end="\]\]" multiline="true" />
+    <Span color="Comment" begin="--\[=\[" end="\]=\]" multiline="true" />
+    <Span color="Comment" begin="--\[==\[" end="\]==\]" multiline="true" />
+    <Span color="Comment" begin="--" />
+
+    <!-- ═══ STRINGS ═══ -->
+    <Span color="String" begin="&quot;" end="&quot;" escapeCharacter="\" />
+    <Span color="String" begin="'" end="'" escapeCharacter="\" />
+    <Span color="String" begin="\[\[" end="\]\]" multiline="true" />
+    <Span color="String" begin="\[=\[" end="\]=\]" multiline="true" />
+
+    <!-- ═══ LUAU TYPE KEYWORDS ═══ -->
+    <Keywords color="TypeKeyword">
+      <Word>type</Word>
+      <Word>export</Word>
+      <Word>typeof</Word>
+    </Keywords>
+
+    <!-- ═══ LANGUAGE KEYWORDS ═══ -->
+    <Keywords color="Keyword">
+      <Word>and</Word>
+      <Word>break</Word>
+      <Word>continue</Word>
+      <Word>do</Word>
+      <Word>else</Word>
+      <Word>elseif</Word>
+      <Word>end</Word>
+      <Word>for</Word>
+      <Word>function</Word>
+      <Word>goto</Word>
+      <Word>if</Word>
+      <Word>in</Word>
+      <Word>local</Word>
+      <Word>not</Word>
+      <Word>or</Word>
+      <Word>repeat</Word>
+      <Word>return</Word>
+      <Word>then</Word>
+      <Word>until</Word>
+      <Word>while</Word>
+    </Keywords>
+
+    <!-- ═══ BOOLEANS & NIL ═══ -->
+    <Keywords color="Boolean">
+      <Word>true</Word>
+      <Word>false</Word>
+      <Word>nil</Word>
+    </Keywords>
+
+    <!-- ═══ STANDARD LIBRARY FUNCTIONS ═══ -->
+    <Keywords color="BuiltIn">
+      <Word>print</Word>
+      <Word>warn</Word>
+      <Word>error</Word>
+      <Word>tostring</Word>
+      <Word>tonumber</Word>
+      <Word>pairs</Word>
+      <Word>ipairs</Word>
+      <Word>next</Word>
+      <Word>select</Word>
+      <Word>unpack</Word>
+      <Word>pcall</Word>
+      <Word>xpcall</Word>
+      <Word>assert</Word>
+      <Word>require</Word>
+      <Word>setmetatable</Word>
+      <Word>getmetatable</Word>
+      <Word>rawget</Word>
+      <Word>rawset</Word>
+      <Word>rawequal</Word>
+      <Word>rawlen</Word>
+      <Word>collectgarbage</Word>
+      <Word>newproxy</Word>
+      <Word>loadstring</Word>
+    </Keywords>
+
+    <!-- ═══ STANDARD LIBRARIES ═══ -->
+    <Keywords color="BuiltIn">
+      <Word>table</Word>
+      <Word>string</Word>
+      <Word>math</Word>
+      <Word>io</Word>
+      <Word>os</Word>
+      <Word>coroutine</Word>
+      <Word>debug</Word>
+      <Word>bit32</Word>
+      <Word>utf8</Word>
+      <Word>buffer</Word>
+      <Word>task</Word>
+    </Keywords>
+
+    <!-- ═══ ROBLOX GLOBALS ═══ -->
+    <Keywords color="RobloxGlobal">
+      <Word>game</Word>
+      <Word>workspace</Word>
+      <Word>script</Word>
+      <Word>wait</Word>
+      <Word>spawn</Word>
+      <Word>delay</Word>
+      <Word>tick</Word>
+      <Word>time</Word>
+      <Word>Enum</Word>
+    </Keywords>
+
+    <!-- ═══ ROBLOX DATA TYPES ═══ -->
+    <Keywords color="RobloxType">
+      <Word>Instance</Word>
+      <Word>Vector2</Word>
+      <Word>Vector3</Word>
+      <Word>CFrame</Word>
+      <Word>Color3</Word>
+      <Word>BrickColor</Word>
+      <Word>UDim</Word>
+      <Word>UDim2</Word>
+      <Word>Ray</Word>
+      <Word>Region3</Word>
+      <Word>Rect</Word>
+      <Word>TweenInfo</Word>
+      <Word>NumberRange</Word>
+      <Word>NumberSequence</Word>
+      <Word>ColorSequence</Word>
+      <Word>PhysicalProperties</Word>
+      <Word>OverlapParams</Word>
+      <Word>RaycastParams</Word>
+      <Word>RaycastResult</Word>
+      <Word>Axes</Word>
+      <Word>Faces</Word>
+      <Word>PathWaypoint</Word>
+    </Keywords>
+
+    <!-- ═══ SYNAPSE Z / EXPLOIT GLOBALS ═══ -->
+    <Keywords color="SynapseFunc">
+      <Word>syn</Word>
+      <Word>getgenv</Word>
+      <Word>getrenv</Word>
+      <Word>getgc</Word>
+      <Word>getinstances</Word>
+      <Word>getnilinstances</Word>
+      <Word>getconnections</Word>
+      <Word>firesignal</Word>
+      <Word>fireclickdetector</Word>
+      <Word>firetouchinterest</Word>
+      <Word>fireproximityprompt</Word>
+      <Word>hookfunction</Word>
+      <Word>hookmetamethod</Word>
+      <Word>newcclosure</Word>
+      <Word>iscclosure</Word>
+      <Word>islclosure</Word>
+      <Word>getrawmetatable</Word>
+      <Word>setrawmetatable</Word>
+      <Word>setreadonly</Word>
+      <Word>isreadonly</Word>
+      <Word>getnamecallmethod</Word>
+      <Word>setnamecallmethod</Word>
+      <Word>getcallingscript</Word>
+      <Word>getscriptclosure</Word>
+      <Word>getscripthash</Word>
+      <Word>cloneref</Word>
+      <Word>compareinstances</Word>
+      <Word>checkcaller</Word>
+      <Word>isnetworkowner</Word>
+      <Word>sethiddenproperty</Word>
+      <Word>gethiddenproperty</Word>
+      <Word>setclipboard</Word>
+      <Word>setfflag</Word>
+      <Word>getfflag</Word>
+      <Word>writefile</Word>
+      <Word>readfile</Word>
+      <Word>appendfile</Word>
+      <Word>isfile</Word>
+      <Word>isfolder</Word>
+      <Word>makefolder</Word>
+      <Word>delfolder</Word>
+      <Word>delfile</Word>
+      <Word>listfiles</Word>
+      <Word>identifyexecutor</Word>
+      <Word>getexecutorname</Word>
+      <Word>request</Word>
+      <Word>http_request</Word>
+      <Word>HttpGet</Word>
+      <Word>HttpPost</Word>
+    </Keywords>
+
+    <!-- ═══ SELF & GLOBAL VARS ═══ -->
+    <Keywords color="Self">
+      <Word>self</Word>
+    </Keywords>
+
+    <Keywords color="GlobalVar">
+      <Word>_G</Word>
+      <Word>_VERSION</Word>
+      <Word>shared</Word>
+    </Keywords>
+
+    <!-- ═══ NUMBERS ═══ -->
+    <Rule color="Number">\b0[xX][0-9a-fA-F_]+\b</Rule>
+    <Rule color="Number">\b0[bB][01_]+\b</Rule>
+    <Rule color="Number">\b\d+\.?\d*([eE][+-]?\d+)?\b</Rule>
+
+    <!-- ═══ OPERATORS ═══ -->
+    <Rule color="Operator">[+\-*/%^#=~&lt;&gt;]=?|\.\.\.?|::</Rule>
+  </RuleSet>
+</SyntaxDefinition>
