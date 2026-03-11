@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\avira\\Downloads\\SynUI\\SynUI\\SynUI.csproj": {}
+    "C:\\Users\\avira\\Downloads\\SynUI\\SynUI\\SynUI.csproj": {}
   },
   "projects": {
-    "c:\\Users\\avira\\Downloads\\SynUI\\SynUI\\SynUI.csproj": {
+    "C:\\Users\\avira\\Downloads\\SynUI\\SynUI\\SynUI.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\avira\\Downloads\\SynUI\\SynUI\\SynUI.csproj",
+        "projectUniqueName": "C:\\Users\\avira\\Downloads\\SynUI\\SynUI\\SynUI.csproj",
         "projectName": "SynUI",
-        "projectPath": "c:\\Users\\avira\\Downloads\\SynUI\\SynUI\\SynUI.csproj",
+        "projectPath": "C:\\Users\\avira\\Downloads\\SynUI\\SynUI\\SynUI.csproj",
         "packagesPath": "C:\\Users\\avira\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\avira\\Downloads\\SynUI\\SynUI\\obj\\",
+        "outputPath": "C:\\Users\\avira\\Downloads\\SynUI\\SynUI\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

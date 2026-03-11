@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "wwXzywXDP+Q=",
+  "dgSpecHash": "o+euFKgSETw=",
   "success": true,
-  "projectFilePath": "c:\\Users\\avira\\Downloads\\SynUI\\SynUI\\SynUI.csproj",
+  "projectFilePath": "C:\\Users\\avira\\Downloads\\SynUI\\SynUI\\SynUI.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\avira\\.nuget\\packages\\avalonedit\\6.3.1.120\\avalonedit.6.3.1.120.nupkg.sha512",
     "C:\\Users\\avira\\.nuget\\packages\\messagepack\\2.5.198\\messagepack.2.5.198.nupkg.sha512",

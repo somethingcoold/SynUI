@@ -35,6 +35,7 @@ namespace SynUI.Views
             await TransitionAndAction(async () => {
                 try
                 {
+                    AppPaths.ExtractWebAppResources();
                     string? webAppDir = FindWebAppDir();
                     if (webAppDir == null)
                     {
@@ -97,6 +98,10 @@ namespace SynUI.Views
 
         private string? FindWebAppDir()
         {
+            // First check LocalAppData (where we extract resources)
+            if (Directory.Exists(AppPaths.WebAppDir)) return AppPaths.WebAppDir;
+
+            // Fallback: check project root (dev environment)
             string current = AppDomain.CurrentDomain.BaseDirectory;
             for (int i = 0; i < 7; i++)
             {

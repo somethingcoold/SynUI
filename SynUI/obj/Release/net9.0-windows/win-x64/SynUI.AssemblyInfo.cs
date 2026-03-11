@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SynUI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f008bad2ee797ba48aa71a32ff06dfae57f9942b")]
 [assembly: System.Reflection.AssemblyProductAttribute("SynUI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SynUI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

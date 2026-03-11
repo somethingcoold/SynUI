@@ -1,75 +1,81 @@
 using System;
 using System.IO;
+using System.Reflection;
 
 namespace SynUI.Services
 {
-    /// <summary>
-    /// Single source of truth for all application and executor data paths.
-    /// All directories are created on first access.
-    /// </summary>
     public static class AppPaths
     {
-        // ── UI-Owned Data (%LOCALAPPDATA%\SynUI\) ──
-
-        /// <summary>Root data directory: %LOCALAPPDATA%\SynUI</summary>
         public static readonly string DataRoot;
-
-        /// <summary>Regular .lua script files: %LOCALAPPDATA%\SynUI\scripts\</summary>
         public static readonly string ScriptsDir;
-
-        /// <summary>UI's copy of autoexec scripts: %LOCALAPPDATA%\SynUI\autoexec\</summary>
         public static readonly string AutoExecDir;
-
-        /// <summary>Tab/state persistence: %LOCALAPPDATA%\SynUI\state.json</summary>
         public static readonly string StateFilePath;
+        public static readonly string WebAppDir;
 
-        // ── Synapse Z Executor Paths (%LOCALAPPDATA%\Synapse Z\) ──
-
-        /// <summary>Synapse Z root: %LOCALAPPDATA%\Synapse Z\</summary>
         public static readonly string SynapseZRoot;
-
-        /// <summary>Executor's autoexec folder (synced FROM SynUI): %LOCALAPPDATA%\Synapse Z\autoexec\</summary>
         public static readonly string SynapseZAutoExecDir;
-
-        /// <summary>Synapse Z binaries: %LOCALAPPDATA%\Synapse Z\bin\</summary>
         public static readonly string SynapseZBinDir;
-
-        /// <summary>Luau LSP binary directory: %LOCALAPPDATA%\Synapse Z\lsp\</summary>
         public static readonly string LspDir;
-
-        /// <summary>Luau LSP executable path: %LOCALAPPDATA%\Synapse Z\lsp\luau-lsp.exe</summary>
         public static readonly string LspExePath;
 
         static AppPaths()
         {
             string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-
-            // UI-owned
             DataRoot = Path.Combine(localAppData, "SynUI");
             ScriptsDir = Path.Combine(DataRoot, "scripts");
             AutoExecDir = Path.Combine(DataRoot, "autoexec");
             StateFilePath = Path.Combine(DataRoot, "state.json");
+            WebAppDir = Path.Combine(DataRoot, "WebApp");
 
-            // Synapse Z executor
             SynapseZRoot = Path.Combine(localAppData, "Synapse Z");
             SynapseZAutoExecDir = Path.Combine(SynapseZRoot, "autoexec");
             SynapseZBinDir = Path.Combine(SynapseZRoot, "bin");
             LspDir = Path.Combine(SynapseZRoot, "lsp");
             LspExePath = Path.Combine(LspDir, "luau-lsp.exe");
 
-            // Ensure all directories exist
             EnsureDirectories();
         }
 
-        /// <summary>
-        /// Creates all required directories if they don't already exist.
-        /// </summary>
         public static void EnsureDirectories()
         {
             Directory.CreateDirectory(DataRoot);
             Directory.CreateDirectory(ScriptsDir);
             Directory.CreateDirectory(AutoExecDir);
             Directory.CreateDirectory(SynapseZAutoExecDir);
+            Directory.CreateDirectory(WebAppDir);
+        }
+
+        public static void ExtractWebAppResources()
+        {
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            string prefix = "SynUI.Resources.WebApp.";
+            
+            foreach (var resName in assembly.GetManifestResourceNames())
+            {
+                if (!resName.StartsWith(prefix)) continue;
+
+                string relativeName = resName.Substring(prefix.Length);
+                string filePath = relativeName;
+
+                if (filePath.StartsWith("dist.")) {
+                    if (filePath.StartsWith("dist.assets."))
+                        filePath = Path.Combine("dist", "assets", filePath.Substring(12));
+                    else
+                        filePath = Path.Combine("dist", filePath.Substring(5));
+                }
+                
+                string targetPath = Path.Combine(WebAppDir, filePath.Replace("/", "\\"));
+                string? targetFolder = Path.GetDirectoryName(targetPath);
+                if (targetFolder != null) Directory.CreateDirectory(targetFolder);
+
+                try {
+                    using Stream? stream = assembly.GetManifestResourceStream(resName);
+                    if (stream != null) {
+                        using FileStream fileStream = new FileStream(targetPath, FileMode.Create, FileAccess.Write);
+                        stream.CopyTo(fileStream);
+                    }
+                } catch { }
+            }
         }
     }
 }

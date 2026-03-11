@@ -75,3 +75,4 @@ c:\Users\avira\Downloads\SynUI\SynUI\obj\Release\net9.0-windows\win-x64\refint\S
 c:\Users\avira\Downloads\SynUI\SynUI\obj\Release\net9.0-windows\win-x64\SynUI.pdb
 c:\Users\avira\Downloads\SynUI\SynUI\obj\Release\net9.0-windows\win-x64\SynUI.genruntimeconfig.cache
 c:\Users\avira\Downloads\SynUI\SynUI\obj\Release\net9.0-windows\win-x64\ref\SynUI.dll
+C:\Users\avira\Downloads\SynUI\SynUI\obj\Release\net9.0-windows\win-x64\SynUI.sourcelink.json

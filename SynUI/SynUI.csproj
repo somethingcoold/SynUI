@@ -12,6 +12,7 @@
     <!-- Production publish settings (Framework Dependent) -->
     <SelfContained>false</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
@@ -23,6 +24,7 @@
 
   <ItemGroup>
     <Resource Include="Resources\Lua.xshd" />
+    <EmbeddedResource Include="Resources\WebApp\**\*" />
   </ItemGroup>
 
 </Project>
