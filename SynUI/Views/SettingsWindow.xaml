@@ -1,0 +1,251 @@
+<Window x:Class="SynUI.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SynUI Settings"
+        Width="520" Height="460"
+        MinWidth="440" MinHeight="380"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize">
+
+    <Border CornerRadius="10"
+            Background="{StaticResource BgDeepBrush}"
+            BorderBrush="{StaticResource BorderSubtleBrush}"
+            BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect Color="#000" BlurRadius="32" ShadowDepth="4" Opacity="0.7" />
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40" />  <!-- Titlebar -->
+                <RowDefinition Height="*"  />  <!-- Content -->
+            </Grid.RowDefinitions>
+
+            <!-- ── Title Bar ── -->
+            <Border Grid.Row="0" Background="{StaticResource BgBaseBrush}"
+                    CornerRadius="10,10,0,0"
+                    MouseLeftButtonDown="TitleBar_MouseDown">
+                <Grid Margin="14,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="◈" FontSize="13"
+                                   FontFamily="JetBrains Mono, Cascadia Code, Consolas"
+                                   Foreground="{StaticResource AccentPurpleBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0">
+                            <TextBlock.Effect>
+                                <DropShadowEffect Color="{StaticResource AccentPurple}"
+                                                  BlurRadius="8" ShadowDepth="0" Opacity="0.7" />
+                            </TextBlock.Effect>
+                        </TextBlock>
+                        <TextBlock Text="SETTINGS"
+                                   FontSize="11" FontWeight="Bold"
+                                   FontFamily="JetBrains Mono, Cascadia Code, Consolas"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button Content="✕" HorizontalAlignment="Right"
+                            Width="32" Height="32"
+                            Background="Transparent" BorderThickness="0"
+                            FontFamily="JetBrains Mono, Cascadia Code, Consolas"
+                            FontSize="11" Cursor="Hand"
+                            Foreground="{StaticResource TextMutedBrush}"
+                            Click="Close_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="Bd" Background="Transparent" CornerRadius="0,10,0,0">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentRedBrush}" />
+                                                    <Setter Property="Foreground" Value="White" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- ── Content ── -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
+                <StackPanel Margin="24,20,24,24">
+
+                    <!-- THEME section -->
+                    <TextBlock Text="THEME"
+                               FontSize="9.5" FontWeight="Bold"
+                               FontFamily="JetBrains Mono, Cascadia Code, Consolas"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Margin="0,0,0,14" />
+
+                    <UniformGrid x:Name="ThemeGrid" Rows="1" Columns="4" Margin="0,0,0,28">
+                        <!-- Dark theme card -->
+                        <Border x:Name="ThemeCard_Dark" CornerRadius="6" Margin="0,0,8,0"
+                                BorderThickness="1.5" Cursor="Hand"
+                                MouseLeftButtonUp="ThemeCard_Click" Tag="dark">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#09090B" />
+                                    <Setter Property="BorderBrush" Value="#1E1E26" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="BorderBrush" Value="#7C3AED" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Margin="12" HorizontalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                    <Ellipse Width="14" Height="14" Fill="#09090B" Margin="0,0,4,0"
+                                             Stroke="#1E1E26" StrokeThickness="1" />
+                                    <Ellipse Width="14" Height="14" Fill="#7C3AED" Margin="0,0,4,0" />
+                                    <Ellipse Width="14" Height="14" Fill="#E4E4E7" Margin="0,0,4,0" />
+                                    <Ellipse Width="14" Height="14" Fill="#3B82F6" />
+                                </StackPanel>
+                                <TextBlock x:Name="ThemeLabel_Dark" Text="Dark"
+                                           FontSize="10.5" FontWeight="SemiBold"
+                                           FontFamily="JetBrains Mono, Cascadia Code, Consolas"
+                                           Foreground="#A1A1AA" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="ThemeCheck_Dark" Text="✓"
+                                           FontSize="9" Foreground="#7C3AED"
+                                           HorizontalAlignment="Center"
+                                           Visibility="Collapsed" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Gray theme card -->
+                        <Border x:Name="ThemeCard_Gray" CornerRadius="6" Margin="0,0,8,0"
+                                BorderThickness="1.5" Cursor="Hand"
+                                MouseLeftButtonUp="ThemeCard_Click" Tag="gray">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#111113" />
+                                    <Setter Property="BorderBrush" Value="#27272A" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="BorderBrush" Value="#A1A1AA" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Margin="12" HorizontalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                    <Ellipse Width="14" Height="14" Fill="#111113" Margin="0,0,4,0"
+                                             Stroke="#27272A" StrokeThickness="1" />
+                                    <Ellipse Width="14" Height="14" Fill="#A1A1AA" Margin="0,0,4,0" />
+                                    <Ellipse Width="14" Height="14" Fill="#FAFAFA" Margin="0,0,4,0" />
+                                    <Ellipse Width="14" Height="14" Fill="#6366F1" />
+                                </StackPanel>
+                                <TextBlock x:Name="ThemeLabel_Gray" Text="Gray"
+                                           FontSize="10.5" FontWeight="SemiBold"
+                                           FontFamily="JetBrains Mono, Cascadia Code, Consolas"
+                                           Foreground="#A1A1AA" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="ThemeCheck_Gray" Text="✓"
+                                           FontSize="9" Foreground="#A1A1AA"
+                                           HorizontalAlignment="Center"
+                                           Visibility="Collapsed" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Blue theme card -->
+                        <Border x:Name="ThemeCard_Blue" CornerRadius="6" Margin="0,0,8,0"
+                                BorderThickness="1.5" Cursor="Hand"
+                                MouseLeftButtonUp="ThemeCard_Click" Tag="blue">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#0A1628" />
+                                    <Setter Property="BorderBrush" Value="#1E3A5F" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="BorderBrush" Value="#60A5FA" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Margin="12" HorizontalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                    <Ellipse Width="14" Height="14" Fill="#0A1628" Margin="0,0,4,0"
+                                             Stroke="#1E3A5F" StrokeThickness="1" />
+                                    <Ellipse Width="14" Height="14" Fill="#60A5FA" Margin="0,0,4,0" />
+                                    <Ellipse Width="14" Height="14" Fill="#E2F0FF" Margin="0,0,4,0" />
+                                    <Ellipse Width="14" Height="14" Fill="#34D399" />
+                                </StackPanel>
+                                <TextBlock x:Name="ThemeLabel_Blue" Text="Blue"
+                                           FontSize="10.5" FontWeight="SemiBold"
+                                           FontFamily="JetBrains Mono, Cascadia Code, Consolas"
+                                           Foreground="#93C5FD" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="ThemeCheck_Blue" Text="✓"
+                                           FontSize="9" Foreground="#60A5FA"
+                                           HorizontalAlignment="Center"
+                                           Visibility="Collapsed" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Blue Dark theme card -->
+                        <Border x:Name="ThemeCard_BlueDark" CornerRadius="6"
+                                BorderThickness="1.5" Cursor="Hand"
+                                MouseLeftButtonUp="ThemeCard_Click" Tag="bluedark">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#080C14" />
+                                    <Setter Property="BorderBrush" Value="#1E2D40" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="BorderBrush" Value="#3B82F6" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Margin="12" HorizontalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                    <Ellipse Width="14" Height="14" Fill="#080C14" Margin="0,0,4,0"
+                                             Stroke="#1E2D40" StrokeThickness="1" />
+                                    <Ellipse Width="14" Height="14" Fill="#3B82F6" Margin="0,0,4,0" />
+                                    <Ellipse Width="14" Height="14" Fill="#E2E8F0" Margin="0,0,4,0" />
+                                    <Ellipse Width="14" Height="14" Fill="#8B5CF6" />
+                                </StackPanel>
+                                <TextBlock x:Name="ThemeLabel_BlueDark" Text="Blue Dark"
+                                           FontSize="10.5" FontWeight="SemiBold"
+                                           FontFamily="JetBrains Mono, Cascadia Code, Consolas"
+                                           Foreground="#94A3B8" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="ThemeCheck_BlueDark" Text="✓"
+                                           FontSize="9" Foreground="#3B82F6"
+                                           HorizontalAlignment="Center"
+                                           Visibility="Collapsed" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Separator -->
+                    <Border Height="1" Background="{StaticResource BorderSubtleBrush}" Margin="0,0,0,24" />
+
+                    <!-- ABOUT section -->
+                    <TextBlock Text="ABOUT"
+                               FontSize="9.5" FontWeight="Bold"
+                               FontFamily="JetBrains Mono, Cascadia Code, Consolas"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Margin="0,0,0,10" />
+                    <TextBlock FontSize="11.5"
+                               FontFamily="JetBrains Mono, Cascadia Code, Consolas"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               LineHeight="20" TextWrapping="Wrap">
+                        <Run Text="SynUI" FontWeight="SemiBold"
+                             Foreground="{StaticResource TextPrimaryBrush}" />
+                        <Run Text=" — A script execution interface for Synapse Z." />
+                        <LineBreak />
+                        <Run Text="Console capture via LogService hook + HTTP server." />
+                    </TextBlock>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</Window>

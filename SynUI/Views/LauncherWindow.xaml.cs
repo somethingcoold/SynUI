@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using SynUI.Services;
 
@@ -50,7 +51,8 @@ namespace SynUI.Views
                     if (!Directory.Exists(nodeModules))
                     {
                         StatusText.Text = "Installing dependencies...";
-                        var npmInstall = await RunSilentAsync("cmd.exe", "/c npm install", webAppDir);
+                        SetProgress(0.15);
+                        var npmInstall = await RunSilentAsync("cmd.exe", "/c npm install --omit=dev", webAppDir);
                         if (npmInstall != 0)
                         {
                             ShowErrorAndReset("Failed to install npm dependencies. Make sure Node.js is installed.");
@@ -58,20 +60,30 @@ namespace SynUI.Views
                         }
                     }
 
-                    // Step 2: Build frontend if dist/ doesn't exist
-                    if (!Directory.Exists(distDir))
+                    // Step 2: Build frontend only if dist is missing (dist is pre-built and embedded)
+                    if (!Directory.Exists(distDir) || !File.Exists(Path.Combine(distDir, "index.html")))
                     {
                         StatusText.Text = "Building frontend...";
+                        SetProgress(0.35);
                         var buildResult = await RunSilentAsync("cmd.exe", "/c npm run build", webAppDir);
                         if (buildResult != 0)
                         {
-                            ShowErrorAndReset("Frontend build failed.");
+                            ShowErrorAndReset("Frontend build failed. Make sure Node.js is installed.");
                             return;
                         }
                     }
+                    SetProgress(0.70);
 
-                    // Step 3: Start the Express server (serves API + built frontend)
+                    // Step 3: Kill any stale server holding port 1337
                     StatusText.Text = "Starting server...";
+                    SetProgress(0.80);
+                    await RunSilentAsync("cmd.exe",
+                        "/c for /f \"tokens=5\" %a in ('netstat -ano ^| findstr \":1337 \"') do taskkill /F /PID %a 2>nul",
+                        AppPaths.DataRoot);
+                    await Task.Delay(400);
+
+                    // Step 4: Start the Express server (serves API + built frontend)
+                    SetProgress(0.90);
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = "cmd.exe",
@@ -82,9 +94,10 @@ namespace SynUI.Views
                         WindowStyle = ProcessWindowStyle.Hidden
                     });
 
-                    // Step 4: Wait for server to be ready, then open browser
+                    // Step 5: Wait for server to be ready, then open browser
                     StatusText.Text = "Opening browser...";
-                    await Task.Delay(1500);
+                    SetProgress(1.0);
+                    await Task.Delay(1800);
                     Process.Start(new ProcessStartInfo("http://localhost:1337") { UseShellExecute = true });
 
                     this.Close();
@@ -98,28 +111,42 @@ namespace SynUI.Views
 
         private string? FindWebAppDir()
         {
-            // First check LocalAppData (where we extract resources)
-            if (Directory.Exists(AppPaths.WebAppDir)) return AppPaths.WebAppDir;
-
-            // Fallback: check project root (dev environment)
+            // Prefer dev project root (has latest server.js changes)
             string current = AppDomain.CurrentDomain.BaseDirectory;
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < 8; i++)
             {
                 string check = Path.Combine(current, "WebApp");
-                if (Directory.Exists(check)) return check;
-
+                if (Directory.Exists(check) && File.Exists(Path.Combine(check, "server.js")))
+                    return check;
                 string? parent = Path.GetDirectoryName(current);
                 if (string.IsNullOrEmpty(parent) || parent == current) break;
                 current = parent;
             }
+
+            // Fallback: LocalAppData extracted copy
+            if (Directory.Exists(AppPaths.WebAppDir) && File.Exists(Path.Combine(AppPaths.WebAppDir, "server.js")))
+                return AppPaths.WebAppDir;
+
             return null;
+        }
+
+        /// <summary>Animates the loading bar to a target fraction (0.0–1.0) of its parent width.</summary>
+        private void SetProgress(double fraction)
+        {
+            double parentWidth = 460; // matches Width="460" on LoadingPanel
+            double targetWidth = parentWidth * Math.Clamp(fraction, 0, 1);
+            var anim = new DoubleAnimation(targetWidth, new Duration(TimeSpan.FromMilliseconds(350)))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            LoadingBar.BeginAnimation(System.Windows.FrameworkElement.WidthProperty, anim);
         }
 
         private void ShowErrorAndReset(string message)
         {
             MessageBox.Show(message);
-            StatusText.Opacity = 0;
-            ChoiceGrid.Opacity = 1;
+            LoadingPanel.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, TimeSpan.FromSeconds(0.3)));
+            ChoiceGrid.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, TimeSpan.FromSeconds(0.3)));
             ChoiceGrid.IsHitTestVisible = true;
         }
 
@@ -151,13 +178,7 @@ namespace SynUI.Views
         private async Task TransitionAndAction(Action action)
         {
             ChoiceGrid.IsHitTestVisible = false;
-            
-            // Nice fade out of choices
-            var fadeOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.4));
-            ChoiceGrid.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-            
-            StatusText.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, TimeSpan.FromSeconds(0.5)));
-            
+            ChoiceGrid.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, TimeSpan.FromSeconds(0.4)));
             await Task.Delay(600);
             action();
             if (action.Method.Name.Contains("Desktop")) this.Close();
@@ -166,11 +187,10 @@ namespace SynUI.Views
         private async Task TransitionAndAction(Func<Task> action)
         {
             ChoiceGrid.IsHitTestVisible = false;
-            var fadeOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.4));
-            ChoiceGrid.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-            StatusText.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, TimeSpan.FromSeconds(0.5)));
-            
-            await Task.Delay(600);
+            ChoiceGrid.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, TimeSpan.FromSeconds(0.4)));
+            LoadingPanel.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, TimeSpan.FromSeconds(0.5)));
+            SetProgress(0.05);
+            await Task.Delay(500);
             await action();
         }
 

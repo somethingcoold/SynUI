@@ -1,0 +1,18 @@
+# ── .NET build artifacts ──────────────────────────────────
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+*.sln.docstates
+
+# ── Node / WebApp ─────────────────────────────────────────
+WebApp/node_modules/
+WebApp/dist/
+WebApp/BackendBin/
+
+# ── Misc ──────────────────────────────────────────────────
+.claude/
+*.log
+Thumbs.db
+.DS_Store

@@ -1,26 +1,43 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using System.Xml;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
+using SynUI.API;
 using SynUI.Models;
 using SynUI.Services;
+using SynUI.Views;
 
 namespace SynUI
 {
     public partial class MainWindow : Window
     {
-        private readonly TabManager _tabManager = new();
-        private readonly EditorManager _editorManager = new();
+        // ── Services ─────────────────────────────────────────────────────────────
+        private readonly TabManager      _tabManager      = new();
+        private readonly EditorManager   _editorManager   = new();
         private readonly ExecutionService _executionService = new();
-        private bool _isUpdatingEditor = false;
+        private readonly SynapseZAPI2   _api2            = SynapseZAPI2.Instance;
+        private bool _isUpdatingEditor;
+        private Action<string>? _themeAppliedHandler;
 
+        // ── Instance polling ─────────────────────────────────────────────────────
+        private readonly DispatcherTimer _instanceTimer   = new() { Interval = TimeSpan.FromSeconds(3) };
+        private int _selectedPid = 0;
+
+        // ── Terminal auto-scroll ─────────────────────────────────────────────────
+        private bool _terminalAutoScroll = true;
+
+        // ────────────────────────────────────────────────────────────────────────
         public MainWindow()
         {
             InitializeComponent();
@@ -35,12 +52,15 @@ namespace SynUI
 
         private void SetupServices()
         {
-            // Tab manager events
-            _tabManager.TabsChanged += RebuildTabList;
+            _tabManager.TabsChanged      += RebuildTabList;
             _tabManager.ActiveTabChanged += OnActiveTabChanged;
-
-            // Execution service events
             _executionService.OnStatusUpdate += SetStatus;
+
+            // Console output from Roblox via HTTP
+            _api2.ConsoleOutput += OnConsoleOutput;
+
+            // Instance polling
+            _instanceTimer.Tick += (_, _) => PollInstances();
         }
 
         private void OnActiveTabChanged(ScriptTab tab)
@@ -48,7 +68,6 @@ namespace SynUI
             _isUpdatingEditor = true;
             CodeEditor.Text = tab.Content;
             _isUpdatingEditor = false;
-
             _editorManager.SetActiveDocument(tab.Id);
             _editorManager.OpenLspDocument(tab.Id, tab.Content);
         }
@@ -63,18 +82,83 @@ namespace SynUI
             {
                 using var stream = Application.GetResourceStream(
                     new Uri("pack://application:,,,/Resources/Lua.xshd"))?.Stream;
-
                 if (stream != null)
                 {
                     using var reader = new XmlTextReader(stream);
-                    var highlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
-                    CodeEditor.SyntaxHighlighting = highlighting;
+                    CodeEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[SynUI] Syntax load error: {ex.Message}");
+                Debug.WriteLine($"[SynUI] Syntax load error: {ex.Message}");
             }
+        }
+
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            SettingsWindow.LoadSavedTheme();
+
+            // Wire AvalonEdit colors (initial + on every theme change)
+            _themeAppliedHandler = _ => Dispatcher.Invoke(RefreshEditorColors);
+            SettingsWindow.ThemeApplied += _themeAppliedHandler;
+            RefreshEditorColors();
+
+            CodeEditor.TextArea.SelectionBrush = new SolidColorBrush(Color.FromArgb(50, 124, 58, 237));
+            CodeEditor.TextArea.SelectionBorder = null;
+            CodeEditor.TextArea.SelectionForeground = null;
+
+            CodeEditor.TextArea.TextEntered  += (s, ev) => _editorManager.HandleTextEntered(CodeEditor.TextArea, ev.Text, k => FindResource(k) as Brush);
+            CodeEditor.TextArea.TextEntering += (s, ev) => _editorManager.HandleTextEntering(ev);
+
+            // Kick off LSP
+            _ = LspManager.Instance.StartAsync();
+
+            // Kill any stale process holding port 1338 (previous desktop instance)
+            try
+            {
+                var psi = new ProcessStartInfo("cmd.exe",
+                    $"/c for /f \"tokens=5\" %a in ('netstat -ano ^| findstr \":{SynapseZAPI2.Port} \"') do taskkill /F /PID %a 2>nul")
+                {
+                    CreateNoWindow = true, UseShellExecute = false
+                };
+                using var kill = Process.Start(psi);
+                kill?.WaitForExit(1500);
+            }
+            catch { }
+
+            // Start console server
+            _api2.Start();
+            AppendTerminalInfo($"[SynUI] Console server started on port {SynapseZAPI2.Port}");
+
+            // Fade-in animation
+            ((Storyboard)FindResource("FadeIn")).Begin();
+
+            // Init instance selector
+            PopulateInstanceSelector(new List<Process>());
+            _instanceTimer.Start();
+            PollInstances();
+
+            await CheckWeaoStatusAsync();
+        }
+
+        // ═══════════════════════════════════
+        //  EDITOR COLORS
+        // ═══════════════════════════════════
+
+        private void RefreshEditorColors()
+        {
+            var surface = FindResource("BgSurfaceBrush") as Brush ?? Brushes.Black;
+            var purple  = FindResource("AccentPurpleBrush") as Brush ?? Brushes.Purple;
+            var blue    = FindResource("AccentBlueBrush") as Brush ?? Brushes.Blue;
+
+            // Set via SetResourceReference so DynamicResource binding is preserved for future changes
+            CodeEditor.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "BgSurfaceBrush");
+            CodeEditor.TextArea.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "BgSurfaceBrush");
+            CodeEditor.TextArea.Caret.CaretBrush = purple;
+            CodeEditor.TextArea.TextView.LinkTextForegroundBrush = blue;
+            CodeEditor.TextArea.TextView.CurrentLineBackground = new SolidColorBrush(Color.FromArgb(14, 255, 255, 255));
+            CodeEditor.TextArea.TextView.CurrentLineBorder = new Pen(new SolidColorBrush(Color.FromArgb(8, 255, 255, 255)), 1);
+            CodeEditor.TextArea.TextView.Redraw();
         }
 
         // ═══════════════════════════════════
@@ -88,71 +172,58 @@ namespace SynUI
 
             foreach (var tab in _tabManager.Tabs)
             {
-                TabList.Children.Add(CreateTabPanel(tab));
-
-                if (tab.IsAutoExec)
-                    AutoExecTabList.Children.Add(CreateTabPanel(tab));
+                var panel = CreateTabPanel(tab);
+                if (tab.IsAutoExec) AutoExecTabList.Children.Add(panel);
+                else                TabList.Children.Add(panel);
             }
 
             ScriptCountText.Text = _tabManager.TabCount == 1
-                ? "1 script"
-                : $"{_tabManager.TabCount} scripts";
+                ? "1 script" : $"{_tabManager.TabCount} scripts";
+
+            // If no tabs, ALWAYS show overlay
+            if (_tabManager.TabCount == 0)
+                WelcomeOverlay.Visibility = Visibility.Visible;
+
+            // Update Continue button visibility based on tab count
+            if (ContinueBtn != null)
+                ContinueBtn.Visibility = _tabManager.TabCount > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private Grid CreateTabPanel(ScriptTab tab)
         {
+            bool isActive = tab.Id == _tabManager.ActiveTabId;
+
             var grid = new Grid { Tag = tab.Id };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            bool isActive = tab.Id == _tabManager.ActiveTabId;
-
             var btn = new Button
             {
                 Content = tab.Name,
-                Style = (Style)FindResource(isActive ? "TabButtonActive" : "TabButton"),
-                Tag = tab.Id
+                Style   = (Style)FindResource(isActive ? "ScriptBtnActive" : "ScriptBtn"),
+                Tag     = tab.Id,
             };
-            btn.Click += (s, e) =>
-            {
-                _tabManager.SyncEditorToActiveTab(() => CodeEditor.Text);
-                _tabManager.SwitchToTab(tab.Id);
-                RebuildTabList();
-            };
+            btn.Click             += (_, _) => { _tabManager.SyncEditorToActiveTab(() => CodeEditor.Text); _tabManager.SwitchToTab(tab.Id); WelcomeOverlay.Visibility = Visibility.Collapsed; RebuildTabList(); };
             btn.MouseRightButtonUp += TabButton_RightClick;
             Grid.SetColumn(btn, 0);
 
-            var closeBtn = new Button
+            var close = new Button
             {
-                Style = (Style)FindResource("TabCloseBtn"),
-                Tag = tab.Id,
-                Margin = new Thickness(0, 0, 6, 0),
-                Visibility = Visibility.Hidden
+                Style   = (Style)FindResource("CloseTabBtn"),
+                Tag     = tab.Id,
+                Margin  = new Thickness(0, 0, 4, 0),
+                Visibility = Visibility.Hidden,
             };
-            closeBtn.Click += (s, e) => _tabManager.CloseTab(tab.Id);
-            Grid.SetColumn(closeBtn, 1);
+            close.Click += (_, _) => _tabManager.CloseTab(tab.Id);
+            Grid.SetColumn(close, 1);
 
-            // Make the grid catch all mouse events seamlessly across its area
-            grid.Background = Brushes.Transparent;
-            
-            grid.MouseEnter += (s, e) => 
-            {
-                if (_tabManager.TabCount > 1) 
-                    closeBtn.Visibility = Visibility.Visible;
-            };
-            
-            grid.MouseLeave += (s, e) =>
-            {
-                if (tab.Id != _tabManager.ActiveTabId)
-                    closeBtn.Visibility = Visibility.Hidden;
-            };
-
-            if (isActive)
-                closeBtn.Visibility = _tabManager.TabCount > 1 ? Visibility.Visible : Visibility.Hidden;
+            grid.Background  = Brushes.Transparent;
+            grid.MouseEnter += (_, _) => { if (_tabManager.TabCount > 1) close.Visibility = Visibility.Visible; };
+            grid.MouseLeave += (_, _) => { if (tab.Id != _tabManager.ActiveTabId) close.Visibility = Visibility.Hidden; };
+            if (isActive && _tabManager.TabCount > 1) close.Visibility = Visibility.Visible;
 
             grid.Children.Add(btn);
-            grid.Children.Add(closeBtn);
-
+            grid.Children.Add(close);
             return grid;
         }
 
@@ -160,7 +231,7 @@ namespace SynUI
         {
             _tabManager.SyncEditorToActiveTab(() => CodeEditor.Text);
             _tabManager.AddTab(isAutoExec: false);
-            string? id = _tabManager.GetLatestTabId();
+            var id = _tabManager.GetLatestTabId();
             if (id != null) ShowRenameDialog(id);
         }
 
@@ -168,7 +239,7 @@ namespace SynUI
         {
             _tabManager.SyncEditorToActiveTab(() => CodeEditor.Text);
             _tabManager.AddTab(isAutoExec: true);
-            string? id = _tabManager.GetLatestTabId();
+            var id = _tabManager.GetLatestTabId();
             if (id != null) ShowRenameDialog(id);
         }
 
@@ -178,45 +249,38 @@ namespace SynUI
 
         private void TabButton_RightClick(object sender, MouseButtonEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is string tabId)
+            if (sender is not Button btn || btn.Tag is not string tabId) return;
+            var tab = _tabManager.GetTab(tabId);
+            if (tab == null) return;
+
+            var menu = new ContextMenu();
+
+            var toggleAE = new MenuItem { Header = tab.IsAutoExec ? "Remove from Auto Exec" : "Add to Auto Exec" };
+            toggleAE.Click += (_, _) => _tabManager.ToggleAutoExec(tabId);
+            menu.Items.Add(toggleAE);
+            menu.Items.Add(new Separator());
+
+            var rename = new MenuItem { Header = "Rename" };
+            rename.Click += (_, _) => ShowRenameDialog(tabId);
+            menu.Items.Add(rename);
+
+            var dup = new MenuItem { Header = "Duplicate" };
+            dup.Click += (_, _) => _tabManager.DuplicateTab(tabId, () => CodeEditor.Text);
+            menu.Items.Add(dup);
+            menu.Items.Add(new Separator());
+
+            var del = new MenuItem
             {
-                var tab = _tabManager.GetTab(tabId);
-                if (tab == null) return;
+                Header = "Delete",
+                Foreground = FindResource("AccentRedBrush") as Brush,
+                IsEnabled = _tabManager.TabCount > 1,
+            };
+            del.Click += (_, _) => _tabManager.CloseTab(tabId);
+            menu.Items.Add(del);
 
-                var menu = new ContextMenu();
-
-                var toggleAutoExecItem = new MenuItem
-                {
-                    Header = tab.IsAutoExec ? "Remove from Auto Exec" : "Add to Auto Exec"
-                };
-                toggleAutoExecItem.Click += (s, ev) => _tabManager.ToggleAutoExec(tabId);
-                menu.Items.Add(toggleAutoExecItem);
-
-                menu.Items.Add(new Separator { Background = FindResource("BorderBrush") as Brush });
-
-                var renameItem = new MenuItem { Header = "Rename" };
-                renameItem.Click += (s, _) => ShowRenameDialog(tabId);
-                menu.Items.Add(renameItem);
-
-                var duplicateItem = new MenuItem { Header = "Duplicate" };
-                duplicateItem.Click += (s, _) => _tabManager.DuplicateTab(tabId, () => CodeEditor.Text);
-                menu.Items.Add(duplicateItem);
-
-                menu.Items.Add(new Separator { Background = FindResource("BorderBrush") as Brush });
-
-                var deleteItem = new MenuItem
-                {
-                    Header = "Delete",
-                    Foreground = FindResource("AccentRedBrush") as Brush,
-                    IsEnabled = _tabManager.TabCount > 1
-                };
-                deleteItem.Click += (s, _) => _tabManager.CloseTab(tabId);
-                menu.Items.Add(deleteItem);
-
-                menu.IsOpen = true;
-                btn.ContextMenu = menu;
-                e.Handled = true;
-            }
+            btn.ContextMenu = menu;
+            menu.IsOpen = true;
+            e.Handled = true;
         }
 
         private void ShowRenameDialog(string tabId)
@@ -226,107 +290,99 @@ namespace SynUI
 
             var dialog = new Window
             {
-                Title = "Rename Script",
-                Width = 340,
-                Height = 150,
+                Title = "Rename",
+                Width = 320, Height = 140,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 WindowStyle = WindowStyle.None,
                 AllowsTransparency = true,
                 Background = Brushes.Transparent,
-                ResizeMode = ResizeMode.NoResize
+                ResizeMode = ResizeMode.NoResize,
             };
 
             var border = new Border
             {
-                CornerRadius = new CornerRadius(10),
-                Background = FindResource("BgElevatedBrush") as Brush,
-                BorderBrush = FindResource("BorderBrush") as Brush,
+                CornerRadius = new CornerRadius(6),
+                Background   = FindResource("BgElevatedBrush") as Brush,
+                BorderBrush  = FindResource("BorderBrush") as Brush,
                 BorderThickness = new Thickness(1),
-                Padding = new Thickness(20)
+                Padding = new Thickness(18),
             };
+            border.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                { Color = Colors.Black, BlurRadius = 20, ShadowDepth = 4, Opacity = 0.5 };
 
             var stack = new StackPanel();
-
             var label = new TextBlock
             {
-                Text = "Script Name",
-                Foreground = FindResource("TextSecondaryBrush") as Brush,
-                FontSize = 11,
-                Margin = new Thickness(0, 0, 0, 8),
-                FontFamily = new FontFamily("Segoe UI")
+                Text       = "Script Name",
+                FontSize   = 10.5,
+                FontFamily = new FontFamily("JetBrains Mono, Cascadia Code, Consolas"),
+                Foreground = FindResource("TextMutedBrush") as Brush,
+                Margin     = new Thickness(0, 0, 0, 6),
             };
-
             var textBox = new TextBox
             {
-                Text = tab.Name,
-                FontSize = 13,
-                Padding = new Thickness(10, 7, 10, 7),
-                Background = FindResource("BgSurfaceBrush") as Brush,
-                Foreground = FindResource("TextPrimaryBrush") as Brush,
-                BorderBrush = FindResource("BorderBrush") as Brush,
+                Text            = tab.Name,
+                FontSize        = 13,
+                FontFamily      = new FontFamily("JetBrains Mono, Cascadia Code, Consolas"),
+                Padding         = new Thickness(9, 6, 9, 6),
+                Background      = FindResource("BgSurfaceBrush") as Brush,
+                Foreground      = FindResource("TextPrimaryBrush") as Brush,
+                BorderBrush     = FindResource("BorderBrush") as Brush,
+                CaretBrush      = FindResource("TextPrimaryBrush") as Brush,
+                SelectionBrush  = FindResource("AccentPurpleBrush") as Brush,
                 BorderThickness = new Thickness(1),
-                CaretBrush = FindResource("TextPrimaryBrush") as Brush,
-                FontFamily = new FontFamily("Segoe UI"),
-                SelectionBrush = FindResource("AccentPurpleBrush") as Brush
             };
             textBox.SelectAll();
 
-            var btnPanel = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 14, 0, 0)
-            };
-
+            var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
             var cancelBtn = new Button
             {
-                Content = "Cancel",
-                Padding = new Thickness(16, 6, 16, 6),
-                Background = FindResource("BgHoverBrush") as Brush,
-                Foreground = FindResource("TextSecondaryBrush") as Brush,
+                Content     = "Cancel",
+                Padding     = new Thickness(14, 5, 14, 5),
+                Background  = FindResource("BgHoverBrush") as Brush,
+                Foreground  = FindResource("TextSecondaryBrush") as Brush,
                 BorderThickness = new Thickness(0),
-                Cursor = Cursors.Hand,
-                FontFamily = new FontFamily("Segoe UI"),
-                Margin = new Thickness(0, 0, 8, 0)
+                FontFamily  = new FontFamily("JetBrains Mono, Cascadia Code, Consolas"),
+                FontSize    = 11.5,
+                Cursor      = Cursors.Hand,
+                Margin      = new Thickness(0, 0, 8, 0),
             };
-            cancelBtn.Click += (s, e) => dialog.Close();
+            cancelBtn.Click += (_, _) => dialog.Close();
 
             var saveBtn = new Button
             {
-                Content = "Save",
-                Padding = new Thickness(16, 6, 16, 6),
+                Content    = "Save",
+                Padding    = new Thickness(14, 5, 14, 5),
                 Background = FindResource("AccentPurpleBrush") as Brush,
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
-                Cursor = Cursors.Hand,
+                FontFamily = new FontFamily("JetBrains Mono, Cascadia Code, Consolas"),
+                FontSize   = 11.5,
                 FontWeight = FontWeights.SemiBold,
-                FontFamily = new FontFamily("Segoe UI")
+                Cursor     = Cursors.Hand,
             };
-            saveBtn.Click += (s, e) =>
+            saveBtn.Click += (_, _) =>
             {
-                string newName = textBox.Text.Trim();
-                if (!string.IsNullOrEmpty(newName))
-                    _tabManager.RenameTab(tabId, newName);
+                var name = textBox.Text.Trim();
+                if (!string.IsNullOrEmpty(name)) _tabManager.RenameTab(tabId, name);
                 dialog.Close();
             };
 
-            textBox.KeyDown += (s, e) =>
+            textBox.KeyDown += (_, ev) =>
             {
-                if (e.Key == Key.Enter) saveBtn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                if (e.Key == Key.Escape) dialog.Close();
+                if (ev.Key == Key.Enter)  saveBtn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (ev.Key == Key.Escape) dialog.Close();
             };
 
-            btnPanel.Children.Add(cancelBtn);
-            btnPanel.Children.Add(saveBtn);
-
+            btns.Children.Add(cancelBtn);
+            btns.Children.Add(saveBtn);
             stack.Children.Add(label);
             stack.Children.Add(textBox);
-            stack.Children.Add(btnPanel);
+            stack.Children.Add(btns);
             border.Child = stack;
             dialog.Content = border;
-
-            dialog.Loaded += (s, e) => { textBox.Focus(); };
+            dialog.Loaded += (_, _) => textBox.Focus();
             dialog.ShowDialog();
         }
 
@@ -336,7 +392,7 @@ namespace SynUI
 
         private void Execute_Click(object sender, RoutedEventArgs e)
         {
-            _executionService.Execute(CodeEditor.Text);
+            _executionService.Execute(CodeEditor.Text, _selectedPid);
         }
 
         private void SetStatus(string text, StatusType type)
@@ -344,8 +400,7 @@ namespace SynUI
             Dispatcher.Invoke(() =>
             {
                 ExecSeparator.Visibility = Visibility.Visible;
-                StatusDot.Visibility = Visibility.Visible;
-                StatusText.Visibility = Visibility.Visible;
+                StatusDot.Visibility     = Visibility.Visible;
 
                 StatusText.Text = text;
 
@@ -353,33 +408,163 @@ namespace SynUI
                 {
                     StatusType.Success => (Color)FindResource("AccentGreen"),
                     StatusType.Warning => (Color)FindResource("AccentOrange"),
-                    StatusType.Error => (Color)FindResource("AccentRed"),
-                    _ => (Color)FindResource("AccentBlue")
+                    StatusType.Error   => (Color)FindResource("AccentRed"),
+                    _                  => (Color)FindResource("AccentBlue"),
                 };
-
                 Color textColor = type switch
                 {
                     StatusType.Success => (Color)FindResource("AccentGreen"),
-                    StatusType.Error => (Color)FindResource("AccentRed"),
-                    _ => (Color)FindResource("TextSecondary")
+                    StatusType.Error   => (Color)FindResource("AccentRed"),
+                    _                  => (Color)FindResource("TextSecondary"),
                 };
 
-                StatusDot.Fill = new SolidColorBrush(dotColor);
+                StatusDot.Fill       = new SolidColorBrush(dotColor);
                 StatusText.Foreground = new SolidColorBrush(textColor);
 
-                var timer = new System.Windows.Threading.DispatcherTimer
-                {
-                    Interval = TimeSpan.FromSeconds(4)
-                };
-                timer.Tick += (s, e) =>
+                var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+                timer.Tick += (_, _) =>
                 {
                     timer.Stop();
                     ExecSeparator.Visibility = Visibility.Collapsed;
-                    StatusDot.Visibility = Visibility.Collapsed;
+                    StatusDot.Visibility     = Visibility.Collapsed;
                     StatusText.Text = "";
                 };
                 timer.Start();
             });
+        }
+
+        // ═══════════════════════════════════
+        //  TERMINAL
+        // ═══════════════════════════════════
+
+        private void HookConsole_Click(object sender, RoutedEventArgs e)
+        {
+            var token     = _api2.NewHookToken();
+            var hookScript = SynapseZAPI2.GetHookScript(SynapseZAPI2.Port, token);
+            _executionService.Execute(hookScript, _selectedPid);
+            AppendTerminalInfo($"[SynUI] Injecting console hook (PID {(_selectedPid == 0 ? "all" : _selectedPid.ToString())})…");
+        }
+
+        private void ClearTerminal_Click(object sender, RoutedEventArgs e)
+        {
+            TerminalBox.Document.Blocks.Clear();
+        }
+
+        private void OnConsoleOutput(int type, string text)
+        {
+            Dispatcher.Invoke(() => AppendTerminalLine(type, text));
+        }
+
+        private void AppendTerminalLine(int type, string text)
+        {
+            var ts    = DateTime.Now.ToString("HH:mm:ss");
+            var label = new[] { "OUT", "INF", "WRN", "ERR" }[Math.Clamp(type, 0, 3)];
+
+            var tsColor = (Brush)FindResource("TextMutedBrush");
+            Brush tagColor = type switch
+            {
+                1 => new SolidColorBrush(Color.FromRgb(0x60, 0xA5, 0xFA)),  // blue
+                2 => new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24)),  // amber
+                3 => new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71)),  // red
+                _ => (Brush)FindResource("TextMutedBrush"),
+            };
+            Brush textColor = type switch
+            {
+                1 => new SolidColorBrush(Color.FromArgb(220, 0x60, 0xA5, 0xFA)),
+                2 => new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24)),
+                3 => new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71)),
+                _ => (Brush)FindResource("TextSecondaryBrush"),
+            };
+
+            var para = new Paragraph
+            {
+                Margin  = new Thickness(0),
+                Padding = new Thickness(0),
+                LineHeight = 18,
+            };
+
+            if (type == 2 || type == 3)
+                para.Background = type == 3
+                    ? new SolidColorBrush(Color.FromArgb(18, 0xEF, 0x44, 0x44))
+                    : new SolidColorBrush(Color.FromArgb(10, 0xF5, 0x9E, 0x0B));
+
+            para.Inlines.Add(new Run($"  {ts}  ") { Foreground = tsColor });
+            para.Inlines.Add(new Run($"{label}  ") { Foreground = tagColor, FontWeight = FontWeights.Bold });
+            para.Inlines.Add(new Run(text) { Foreground = textColor });
+
+            TerminalBox.Document.Blocks.Add(para);
+
+            if (_terminalAutoScroll)
+                TerminalBox.ScrollToEnd();
+
+            // Keep memory bounded
+            while (TerminalBox.Document.Blocks.Count > 1500)
+                TerminalBox.Document.Blocks.Remove(TerminalBox.Document.Blocks.FirstBlock);
+        }
+
+        private void AppendTerminalInfo(string text)
+        {
+            Dispatcher.Invoke(() => AppendTerminalLine(1, text));
+        }
+
+        // ═══════════════════════════════════
+        //  INSTANCE SELECTOR
+        // ═══════════════════════════════════
+
+        private void PollInstances()
+        {
+            try
+            {
+                var instances = SynapseZAPI.GetSynzRobloxInstances();
+                PopulateInstanceSelector(instances);
+            }
+            catch { }
+        }
+
+        private void PopulateInstanceSelector(List<Process> instances)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.Invoke(() => PopulateInstanceSelector(instances));
+                return;
+            }
+
+            var prevPid = _selectedPid;
+            InstanceSelector.Items.Clear();
+            InstanceSelector.Items.Add("All Instances");
+
+            foreach (var p in instances)
+                InstanceSelector.Items.Add($"PID {p.Id}");
+
+            // Try to keep the same selection
+            if (prevPid == 0 || instances.All(p => p.Id != prevPid))
+            {
+                InstanceSelector.SelectedIndex = 0;
+                _selectedPid = 0;
+            }
+            else
+            {
+                for (int i = 0; i < instances.Count; i++)
+                {
+                    if (instances[i].Id == prevPid)
+                    {
+                        InstanceSelector.SelectedIndex = i + 1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void InstanceSelector_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (InstanceSelector.SelectedIndex <= 0)
+            {
+                _selectedPid = 0;
+                return;
+            }
+            var item = InstanceSelector.SelectedItem?.ToString();
+            if (item != null && item.StartsWith("PID ") && int.TryParse(item.Substring(4), out int pid))
+                _selectedPid = pid;
         }
 
         // ═══════════════════════════════════
@@ -395,104 +580,73 @@ namespace SynUI
             }
         }
 
-        private void CodeEditor_TextEntered(object sender, TextCompositionEventArgs e)
-        {
-            _editorManager.HandleTextEntered(
-                CodeEditor.TextArea,
-                e.Text,
-                key => FindResource(key) as Brush);
-        }
-
-        private void CodeEditor_TextEntering(object sender, TextCompositionEventArgs e)
-        {
-            _editorManager.HandleTextEntering(e);
-        }
-
         // ═══════════════════════════════════
-        //  WINDOW LIFECYCLE & CHROME
+        //  WEAO STATUS
         // ═══════════════════════════════════
-
-        private async void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            // Dark-theme the AvalonEdit control
-            var surfaceBrush = FindResource("BgSurfaceBrush") as Brush;
-            var accentBrush = FindResource("AccentPurpleBrush") as Brush;
-
-            CodeEditor.TextArea.TextView.BackgroundRenderers.Clear();
-            CodeEditor.Background = surfaceBrush;
-            CodeEditor.TextArea.Background = surfaceBrush;
-            CodeEditor.TextArea.Caret.CaretBrush = accentBrush;
-            CodeEditor.TextArea.SelectionBrush = new SolidColorBrush(Color.FromArgb(50, 124, 92, 252));
-            CodeEditor.TextArea.SelectionBorder = null;
-            CodeEditor.TextArea.SelectionForeground = null;
-            CodeEditor.TextArea.TextView.LinkTextForegroundBrush = FindResource("AccentBlueBrush") as Brush;
-            CodeEditor.TextArea.TextView.CurrentLineBackground = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255));
-            CodeEditor.TextArea.TextView.CurrentLineBorder = new Pen(new SolidColorBrush(Color.FromArgb(8, 255, 255, 255)), 1);
-
-            // Wire up autocomplete events
-            CodeEditor.TextArea.TextEntered += CodeEditor_TextEntered;
-            CodeEditor.TextArea.TextEntering += CodeEditor_TextEntering;
-
-            // Entrance animation
-            var anim = (Storyboard)FindResource("WindowFadeIn");
-            anim.Begin();
-
-            // LSP
-            _ = LspManager.Instance.StartAsync();
-
-            await CheckWeaoStatusAsync();
-        }
 
         private async Task CheckWeaoStatusAsync()
         {
             var status = await WeaoService.GetSynapseZStatusAsync();
             if (status.Success)
             {
-                RobloxVersionText.Text = $"Roblox version: {status.RobloxVersion}";
-
+                RobloxVersionText.Text = $"rbx {status.RobloxVersion}";
                 if (status.IsUpdated)
                 {
-                    WeaoStatusText.Text = "Functional";
+                    WeaoStatusText.Text     = "SZ: Functional";
                     WeaoStatusText.Foreground = FindResource("AccentGreenBrush") as Brush;
-                    WeaoStatusDot.Fill = FindResource("AccentGreenBrush") as Brush;
                     AnimateWeaoDot((Color)FindResource("AccentGreen"));
                 }
                 else
                 {
-                    WeaoStatusText.Text = "Down";
+                    WeaoStatusText.Text     = "SZ: Outdated";
                     WeaoStatusText.Foreground = FindResource("AccentRedBrush") as Brush;
-                    WeaoStatusDot.Fill = FindResource("AccentRedBrush") as Brush;
                     AnimateWeaoDot((Color)FindResource("AccentRed"));
                 }
             }
             else
             {
-                WeaoStatusText.Text = "API Error";
+                WeaoStatusText.Text     = "SZ: Unknown";
                 WeaoStatusText.Foreground = FindResource("AccentOrangeBrush") as Brush;
-                WeaoStatusDot.Fill = FindResource("AccentOrangeBrush") as Brush;
-                RobloxVersionText.Text = "Roblox version: Unknown";
+                RobloxVersionText.Text  = "rbx ???";
             }
         }
 
-        private void AnimateWeaoDot(Color baseColor)
+        private void AnimateWeaoDot(Color c)
         {
+            var brush = new SolidColorBrush(c);
+            WeaoStatusDot.Fill = brush;
             var anim = new ColorAnimation
             {
-                From = baseColor,
-                To = Color.FromArgb(60, baseColor.R, baseColor.G, baseColor.B),
-                Duration = TimeSpan.FromSeconds(1),
+                From = c,
+                To   = Color.FromArgb(55, c.R, c.G, c.B),
+                Duration = TimeSpan.FromSeconds(1.2),
                 AutoReverse = true,
                 RepeatBehavior = RepeatBehavior.Forever,
-                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
             };
-
-            var brush = new SolidColorBrush(baseColor);
-            WeaoStatusDot.Fill = brush;
             brush.BeginAnimation(SolidColorBrush.ColorProperty, anim);
+        }
+
+        // ═══════════════════════════════════
+        //  WINDOW LIFECYCLE & CHROME
+        // ═══════════════════════════════════
+
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            if ((e.Key == Key.Enter) && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+            {
+                e.Handled = true;
+                _executionService.Execute(CodeEditor.Text, _selectedPid);
+            }
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            _instanceTimer.Stop();
+            _api2.ConsoleOutput -= OnConsoleOutput;
+            if (_themeAppliedHandler != null)
+                SettingsWindow.ThemeApplied -= _themeAppliedHandler;
+            _api2.Stop();
             _tabManager.SaveState(() => CodeEditor.Text);
             ScriptManager.FlushNow();
             LspManager.Instance.Dispose();
@@ -502,37 +656,53 @@ namespace SynUI
         {
             if (WindowState == WindowState.Maximized)
             {
-                MainBorder.CornerRadius = new CornerRadius(0);
-                MainBorder.Margin = new Thickness(6);
+                RootBorder.CornerRadius = new CornerRadius(0);
+                RootBorder.Margin = new Thickness(6);
                 MaximizeBtn.Content = "\uE923";
             }
             else
             {
-                MainBorder.CornerRadius = new CornerRadius(12);
-                MainBorder.Margin = new Thickness(0);
+                RootBorder.CornerRadius = new CornerRadius(10);
+                RootBorder.Margin = new Thickness(0);
                 MaximizeBtn.Content = "\uE739";
             }
         }
 
-        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ClickCount == 2)
-                Maximize_Click(sender, e);
-            else
-                DragMove();
+            if (e.ClickCount == 2) Maximize_Click(sender, e);
+            else if (e.LeftButton == MouseButtonState.Pressed) DragMove();
         }
 
-        private void TitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) { }
+        private void Minimize_Click(object sender, RoutedEventArgs e)  => WindowState = WindowState.Minimized;
+        private void Maximize_Click(object sender, RoutedEventArgs e)  => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        private void Close_Click(object sender, RoutedEventArgs e)     => Close();
 
-        private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-
-        private void Maximize_Click(object sender, RoutedEventArgs e)
+        private void Settings_Click(object sender, RoutedEventArgs e)
         {
-            WindowState = WindowState == WindowState.Maximized
-                ? WindowState.Normal
-                : WindowState.Maximized;
+            var win = new SettingsWindow { Owner = this };
+            win.ShowDialog();
         }
 
-        private void Close_Click(object sender, RoutedEventArgs e) => Close();
+        private void ContinueToEditor_Click(object sender, RoutedEventArgs e)
+            => WelcomeOverlay.Visibility = Visibility.Collapsed;
+
+        private void WelcomeNewScript_Click(object sender, RoutedEventArgs e)
+        {
+            _tabManager.SyncEditorToActiveTab(() => CodeEditor.Text);
+            _tabManager.AddTab(isAutoExec: false);
+            WelcomeOverlay.Visibility = Visibility.Collapsed;
+            var id = _tabManager.GetLatestTabId();
+            if (id != null) ShowRenameDialog(id);
+        }
+
+        private void WelcomeNewAutoExec_Click(object sender, RoutedEventArgs e)
+        {
+            _tabManager.SyncEditorToActiveTab(() => CodeEditor.Text);
+            _tabManager.AddTab(isAutoExec: true);
+            WelcomeOverlay.Visibility = Visibility.Collapsed;
+            var id = _tabManager.GetLatestTabId();
+            if (id != null) ShowRenameDialog(id);
+        }
     }
 }

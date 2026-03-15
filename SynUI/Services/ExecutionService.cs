@@ -19,8 +19,9 @@ namespace SynUI.Services
 
         /// <summary>
         /// Executes a Lua script through SynapseZ and fires status update.
+        /// PID = 0 targets all injected instances.
         /// </summary>
-        public void Execute(string script)
+        public void Execute(string script, int pid = 0)
         {
             if (string.IsNullOrWhiteSpace(script))
             {
@@ -32,7 +33,7 @@ namespace SynUI.Services
 
             try
             {
-                int result = SynapseZAPI.Execute(script);
+                int result = SynapseZAPI.Execute(script, pid);
 
                 switch (result)
                 {

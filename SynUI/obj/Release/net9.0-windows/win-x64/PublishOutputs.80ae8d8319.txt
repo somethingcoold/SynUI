@@ -1,2 +1,0 @@
-c:\Users\avira\Downloads\SynUI\SynUI\bin\Release\net9.0-windows\win-x64\publish\SynUI.pdb
-c:\Users\avira\Downloads\SynUI\SynUI\bin\Release\net9.0-windows\win-x64\publish\SynUI.exe
